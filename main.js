@@ -76,6 +76,7 @@ if (appConfig.killIguanaOnStart) {
 	if (os.platform() === 'win32') {
 		iguanaGrep = 'tasklist';
 	}
+
 	exec(iguanaGrep, function(error, stdout, stderr) {
 		if (stdout.indexOf('iguana') > -1) {
 			const pkillCmd = os.platform() === 'win32' ? 'taskkill /f /im iguana.exe' : 'pkill -15 iguana';
@@ -176,6 +177,9 @@ shepherd.setIO(io); // pass sockets object to shepherd router
 shepherd.setVar('appBasicInfo', appBasicInfo);
 shepherd.setVar('appSessionHash', appSessionHash);
 
+const nativeCoindList = shepherd.scanNativeCoindBins();
+shepherd.setVar('nativeCoindList', nativeCoindList);
+
 module.exports = guiapp;
 var iguanaIcon;
 
@@ -273,6 +277,7 @@ function createWindow (status) {
 				shepherd.writeLog('show edex gui');
 				mainWindow.appConfig = appConfig;
 				mainWindow.appSessionHash = appSessionHash;
+				mainWindow.nativeCoindList = nativeCoindList;
 
 				if (appConfig.dev) {
 					mainWindow.loadURL('http://127.0.0.1:3000');
