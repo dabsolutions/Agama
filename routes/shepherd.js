@@ -375,6 +375,7 @@ shepherd.get('/update/patch', function(req, res, next) {
   shepherd.updateAgama();
 });
 
+// TODO: reroute to agama-updates repo
 shepherd.updateAgama = function() {
   const rootLocation = path.join(__dirname, '../');
 
@@ -383,6 +384,7 @@ shepherd.updateAgama = function() {
     localFile: rootLocation + 'patch.zip',
     onProgress: function(received, total) {
       const percentage = (received * 100) / total;
+
       if (Math.floor(percentage) % 5 === 0 ||
           Math.floor(percentage) % 10 === 0) {
         console.log('patch ' + percentage + '% | ' + received + ' bytes out of ' + total + ' bytes.');
@@ -532,6 +534,7 @@ shepherd.scanNativeCoindBins = function() {
     nativeCoindList[key] = {
       name: nativeCoind[key].name,
       port: nativeCoind[key].port,
+      bin: nativeCoind[key].bin,
       bins: {
         daemon: false,
         cli: false,
@@ -687,10 +690,16 @@ shepherd.quitKomodod = function() {
 
   for (let key in coindInstanceRegistry) {
     const chain = key !== 'komodod' ? key : null;
+    let _coindQuitCmd = komodocliBin + (chain ? ' -ac_name=' + chain : '') + ' stop';
+
+    // any coind
+    if (shepherd.nativeCoindList[key.toLowerCase()]) {
+      _coindQuitCmd = `${coindRootDir}/${key.toLowerCase()}/${shepherd.nativeCoindList[key.toLowerCase()].bin.toLowerCase()}-cli stop`;
+    }
 
     coindExitInterval[key] = setInterval(function() {
-      console.log('exec ' + komodocliBin + (chain ? ' -ac_name=' + chain : '') + ' stop');
-      exec(komodocliBin + (chain ? ' -ac_name=' + chain : '') + ' stop', function(error, stdout, stderr) {
+      console.log('exec ' + _coindQuitCmd);
+      exec(_coindQuitCmd, function(error, stdout, stderr) {
         console.log(`stdout: ${stdout}`);
         console.log(`stderr: ${stderr}`);
 
@@ -708,18 +717,31 @@ shepherd.quitKomodod = function() {
 }
 
 shepherd.getConf = function(chain) {
-  const _confLocation = chain === 'komodod' ? `${komodoDir}/komodo.conf` : `${komodoDir}/${chain}/${chain}.conf`;
+  let _confLocation = chain === 'komodod' ? `${komodoDir}/komodo.conf` : `${komodoDir}/${chain}/${chain}.conf`;
+
+  // any coind
+  if (shepherd.nativeCoindList[chain.toLowerCase()]) {
+    const _osHome = os.platform === 'win32' ? process.env.APPDATA : process.env.HOME;
+    let coindDebugLogLocation = `${_osHome}/.${shepherd.nativeCoindList[chain.toLowerCase()].bin.toLowerCase()}/debug.log`;
+
+    _confLocation = `${_osHome}/.${shepherd.nativeCoindList[chain.toLowerCase()].bin.toLowerCase()}/${shepherd.nativeCoindList[chain.toLowerCase()].bin.toLowerCase()}.conf`;
+  }
 
   if (fs.existsSync(_confLocation)) {
-    const _port = assetChainPorts[chain];
+    let _port = assetChainPorts[chain];
     const _rpcConf = fs.readFileSync(_confLocation, 'utf8');
+
+    // any coind
+    if (shepherd.nativeCoindList[chain.toLowerCase()]) {
+      _port = shepherd.nativeCoindList[chain.toLowerCase()].port;
+    }
 
     if (_rpcConf.length) {
       let _match;
       let parsedRpcConfig = {
         user: '',
         pass: '',
-        port: _port
+        port: _port,
       };
 
       if (_match = _rpcConf.match(/rpcuser=\s*(.*)/)) {
@@ -731,7 +753,13 @@ shepherd.getConf = function(chain) {
         parsedRpcConfig.pass = _match[1];
       }
 
-      rpcConf[chain === 'komodod' ? 'KMD' : chain] = parsedRpcConfig;
+      if (shepherd.nativeCoindList[chain.toLowerCase()]) {
+        rpcConf[chain] = parsedRpcConfig;
+      } else {
+        rpcConf[chain === 'komodod' ? 'KMD' : chain] = parsedRpcConfig;
+      }
+
+      console.log(JSON.stringify(parsedRpcConfig, null, '\t'));
     } else {
       console.log(`${_confLocation} is empty`);
     }
@@ -770,41 +798,75 @@ shepherd.post('/cli', function(req, res, next) {
     }
 
     if (_mode === 'default') {
-      let _body = {
-        'agent': 'bitcoinrpc',
-        'method': _cmd
-      };
+      if (_cmd === 'debug') {
+        if (shepherd.nativeCoindList[_chain.toLowerCase()]) {
+          const _osHome = os.platform === 'win32' ? process.env.APPDATA : process.env.HOME;
+          let coindDebugLogLocation = `${_osHome}/.${shepherd.nativeCoindList[_chain.toLowerCase()].bin.toLowerCase()}/debug.log`;
 
-      if (req.body.payload.params) {
-        _body = {
-          'agent': 'bitcoinrpc',
-          'method': _cmd,
-          'params': req.body.payload.params === ' ' ? [''] : req.body.payload.params
-        };
-      }
+          shepherd.readDebugLog(coindDebugLogLocation, 1)
+            .then(function(result) {
+              const _obj = {
+                'msg': 'success',
+                'result': result
+              };
 
-      const options = {
-        url: `http://localhost:${rpcConf[req.body.payload.chain].port}`,
-        method: 'POST',
-        auth: {
-          'user': rpcConf[req.body.payload.chain].user,
-          'pass': rpcConf[req.body.payload.chain].pass
-        },
-        body: JSON.stringify(_body)
-      };
+              console.log('bitcoinrpc debug ====>');
+              console.log(result);
 
-      // send back body on both success and error
-      // this bit replicates iguana core's behaviour
-      request(options, function (error, response, body) {
-        if (response &&
-            response.statusCode &&
-            response.statusCode === 200) {
-          res.end(body);
+              res.end(JSON.stringify(_obj));
+            }, function(result) {
+              const _obj = {
+                error: result,
+                result: 'error'
+              };
+
+              res.end(JSON.stringify(_obj));
+            });
         } else {
-          res.end(body);
+          res.end({
+            error: 'bitcoinrpc debug error',
+            result: 'error'
+          });
+          console.log('bitcoinrpc debug error');
         }
-      });
+      } else {
+        let _body = {
+          'agent': 'bitcoinrpc',
+          'method': _cmd
+        };
+
+        if (req.body.payload.params) {
+          _body = {
+            'agent': 'bitcoinrpc',
+            'method': _cmd,
+            'params': req.body.payload.params === ' ' ? [''] : req.body.payload.params
+          };
+        }
+
+        const options = {
+          url: `http://localhost:${rpcConf[req.body.payload.chain].port}`,
+          method: 'POST',
+          auth: {
+            'user': rpcConf[req.body.payload.chain].user,
+            'pass': rpcConf[req.body.payload.chain].pass
+          },
+          body: JSON.stringify(_body)
+        };
+
+        // send back body on both success and error
+        // this bit replicates iguana core's behaviour
+        request(options, function (error, response, body) {
+          if (response &&
+              response.statusCode &&
+              response.statusCode === 200) {
+            res.end(body);
+          } else {
+            res.end(body);
+          }
+        });
+      }
     } else {
+      // TODO: any coind
       exec(komodocliBin + (_chain ? ' -ac_name=' + _chain : '') + ' ' + _cmd + _params, function(error, stdout, stderr) {
         console.log(`stdout: ${stdout}`);
         console.log(`stderr: ${stderr}`);
@@ -862,7 +924,6 @@ shepherd.saveLocalAppConf = function(appSettings) {
 
   _fs.access(iguanaDir, fs.constants.R_OK, function(err) {
     if (!err) {
-
       const FixFilePermissions = function() {
         return new Promise(function(resolve, reject) {
           const result = 'config.json file permissions updated to Read/Write';
@@ -1899,7 +1960,7 @@ function herder(flock, data, coind) {
   if (flock === 'coind') {
     console.log(JSON.stringify(shepherd.nativeCoindList[coind.toLowerCase()], null, '\t'));
     const _osHome = os.platform === 'win32' ? process.env.APPDATA : process.env.HOME;
-    let coindDebugLogLocation = `${_osHome}/.${shepherd.nativeCoindList[coind.toLowerCase()].name.toLowerCase()}/debug.log`;
+    let coindDebugLogLocation = `${_osHome}/.${shepherd.nativeCoindList[coind.toLowerCase()].bin.toLowerCase()}/debug.log`;
 
     console.log(`coind ${coind} flock selected...`);
     console.log(`selected data: ${JSON.stringify(data, null, '\t')}`);
@@ -1925,7 +1986,7 @@ function herder(flock, data, coind) {
 
     // get komodod instance port
     const _port = shepherd.nativeCoindList[coind.toLowerCase()].port;
-    const coindBin = `${coindRootDir}/${coind.toLowerCase()}/${shepherd.nativeCoindList[coind.toLowerCase()].name.toLowerCase()}d`;
+    const coindBin = `${coindRootDir}/${coind.toLowerCase()}/${shepherd.nativeCoindList[coind.toLowerCase()].bin.toLowerCase()}d`;
     console.log('coind bin ' + coindBin);
 
     try {
@@ -2009,56 +2070,43 @@ function setConf(flock, coind) {
   let zcashDir;
   let nativeCoindDir;
   let DaemonConfPath;
+  let _osPlatform = os.platform();
 
   console.log(flock);
   shepherd.writeLog(`setconf ${flock}`);
 
-  if (os.platform() === 'darwin') {
-    komodoDir = `${process.env.HOME}/Library/Application Support/Komodo`;
-    ZcashDir = `${process.env.HOME}/Library/Application Support/Zcash`;
-    nativeCoindDir = coind ? `${process.env.HOME}/Library/Application Support/${shepherd.nativeCoindList[coind.toLowerCase()].name}` : null;
-  }
+  switch(_osPlatform) {
+    case 'darwin':
+      komodoDir = `${process.env.HOME}/Library/Application Support/Komodo`;
+      ZcashDir = `${process.env.HOME}/Library/Application Support/Zcash`;
+      nativeCoindDir = `${process.env.HOME}/Library/Application Support/${shepherd.nativeCoindList[coind.toLowerCase()].bin}`;
+      break;
 
-  if (os.platform() === 'linux') {
-    komodoDir = `${process.env.HOME}/.komodo`;
-    ZcashDir = `${process.env.HOME}/.zcash`;
-    nativeCoindDir = coind ? `${process.env.HOME}/.${shepherd.nativeCoindList[coind.toLowerCase()].name.toLowerCase()}` : null;
-  }
+    case 'linux':
+      komodoDir = `${process.env.HOME}/.komodo`;
+      ZcashDir = `${process.env.HOME}/.zcash`;
+      nativeCoindDir = coind ? `${process.env.HOME}/.${shepherd.nativeCoindList[coind.toLowerCase()].bin.toLowerCase()}` : null;
+      break;
 
-  if (os.platform() === 'win32') {
-    komodoDir = `${process.env.APPDATA}/Komodo`;
-    ZcashDir = `${process.env.APPDATA}/Zcash`;
-    nativeCoindDir = coind ?  `${process.env.APPDATA}/${shepherd.nativeCoindList[coind.toLowerCase()].name}` : null;
+    case 'win32':
+      komodoDir = `${process.env.APPDATA}/Komodo`;
+      ZcashDir = `${process.env.APPDATA}/Zcash`;
+      nativeCoindDir = coind ? `${process.env.APPDATA}/${shepherd.nativeCoindList[coind.toLowerCase()].bin}` : null;
+      break;
   }
 
   switch (flock) {
     case 'komodod':
-      DaemonConfPath = `${komodoDir}/komodo.conf`;
-
-      if (os.platform() === 'win32') {
-        DaemonConfPath = path.normalize(DaemonConfPath);
-      }
+      DaemonConfPath = _osPlatform === 'win32' ? path.normalize(komodoDir) : komodoDir;
       break;
     case 'zcashd':
-      DaemonConfPath = `${ZcashDir}/zcash.conf`;
-
-      if (os.platform() === 'win32') {
-        DaemonConfPath = path.normalize(DaemonConfPath);
-      }
+      DaemonConfPath = _osPlatform === 'win32' ? path.normalize(ZcashDir) : ZcashDir;
       break;
     case 'coind':
-      DaemonConfPath = `${nativeCoindDir}/${shepherd.nativeCoindList[coind.toLowerCase()].name.toLowerCase()}.conf`;
-
-      if (os.platform() === 'win32') {
-        DaemonConfPath = path.normalize(DaemonConfPath);
-      }
+      DaemonConfPath = _osPlatform === 'win32' ? path.normalize(`${coindRootDir}/${coind.toLowerCase()}`) : `${coindRootDir}/${coind.toLowerCase()}`;
       break;
     default:
-      DaemonConfPath = `${komodoDir}/${flock}/${flock}.conf`;
-
-      if (os.platform() === 'win32') {
-        DaemonConfPath = path.normalize(DaemonConfPath);
-      }
+      DaemonConfPath = _osPlatform === 'win32' ? path.normalize(`${komodoDir}/${flock}`) : `${komodoDir}/${flock}`;
   }
 
   console.log(DaemonConfPath);
@@ -2280,43 +2328,44 @@ function getConf(flock, coind) {
   let ZcashDir;
   let DaemonConfPath;
   let nativeCoindDir;
+  let _osPlatform = os.platform();
 
   console.log('getconf flock ' + flock);
   console.log('getconf coind ' + coind);
   shepherd.writeLog(`getconf flock: ${flock}`);
 
-  switch(os.platform()) {
+  switch(_osPlatform) {
     case 'darwin':
       komodoDir = `${process.env.HOME}/Library/Application Support/Komodo`;
       ZcashDir = `${process.env.HOME}/Library/Application Support/Zcash`;
-      nativeCoindDir = `${process.env.HOME}/Library/Application Support/${shepherd.nativeCoindList[coind.toLowerCase()].name}`;
+      nativeCoindDir = `${process.env.HOME}/Library/Application Support/${shepherd.nativeCoindList[coind.toLowerCase()].bin}`;
       break;
 
     case 'linux':
       komodoDir = `${process.env.HOME}/.komodo`;
       ZcashDir = `${process.env.HOME}/.zcash`;
-      nativeCoindDir = coind ? `${process.env.HOME}/.${shepherd.nativeCoindList[coind.toLowerCase()].name.toLowerCase()}` : null;
+      nativeCoindDir = coind ? `${process.env.HOME}/.${shepherd.nativeCoindList[coind.toLowerCase()].bin.toLowerCase()}` : null;
       break;
 
     case 'win32':
       komodoDir = `${process.env.APPDATA}/Komodo`;
       ZcashDir = `${process.env.APPDATA}/Zcash`;
-      nativeCoindDir = coind ? `${process.env.APPDATA}/${shepherd.nativeCoindList[coind.toLowerCase()].name}` : null;
+      nativeCoindDir = coind ? `${process.env.APPDATA}/${shepherd.nativeCoindList[coind.toLowerCase()].bin}` : null;
       break;
   }
 
   switch (flock) {
     case 'komodod':
-      DaemonConfPath = os.platform() === 'win32' ? path.normalize(komodoDir) : komodoDir;
+      DaemonConfPath = _osPlatform === 'win32' ? path.normalize(komodoDir) : komodoDir;
       break;
     case 'zcashd':
-      DaemonConfPath = os.platform() === 'win32' ? path.normalize(ZcashDir) : ZcashDir;
+      DaemonConfPath = _osPlatform === 'win32' ? path.normalize(ZcashDir) : ZcashDir;
       break;
     case 'coind':
-      DaemonConfPath = os.platform() === 'win32' ? path.normalize(`${coindRootDir}/${coind.toLowerCase()}`) : `${coindRootDir}/${coind.toLowerCase()}`;
+      DaemonConfPath = _osPlatform === 'win32' ? path.normalize(`${coindRootDir}/${coind.toLowerCase()}`) : `${coindRootDir}/${coind.toLowerCase()}`;
       break;
     default:
-      DaemonConfPath = os.platform() === 'win32' ? path.normalize(`${komodoDir}/${flock}`) : `${komodoDir}/${flock}`;
+      DaemonConfPath = _osPlatform === 'win32' ? path.normalize(`${komodoDir}/${flock}`) : `${komodoDir}/${flock}`;
   }
 
   shepherd.writeLog(`getconf path: ${DaemonConfPath}`);
