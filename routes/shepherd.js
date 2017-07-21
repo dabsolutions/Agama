@@ -1,38 +1,38 @@
-const electron = require('electron'),
-      app = electron.app,
-      BrowserWindow = electron.BrowserWindow,
-      path = require('path'),
-      url = require('url'),
-      os = require('os'),
-      fsnode = require('fs'),
-      fs = require('fs-extra'),
-      _fs = require('graceful-fs'),
-      mkdirp = require('mkdirp'),
-      express = require('express'),
-      exec = require('child_process').exec,
-      spawn = require('child_process').spawn,
-      md5 = require('md5'),
-      pm2 = require('pm2'),
-      request = require('request'),
-      async = require('async'),
-      rimraf = require('rimraf'),
-      portscanner = require('portscanner'),
-      AdmZip = require('adm-zip'),
-      remoteFileSize = require('remote-file-size'),
-      Promise = require('bluebird');
+const electron = require('electron');
+const app = electron.app;
+const BrowserWindow = electron.BrowserWindow;
+const path = require('path');
+const url = require('url');
+const os = require('os');
+const fsnode = require('fs');
+const fs = require('fs-extra');
+const _fs = require('graceful-fs');
+const mkdirp = require('mkdirp');
+const express = require('express');
+const exec = require('child_process').exec;
+const spawn = require('child_process').spawn;
+const md5 = require('md5');
+const pm2 = require('pm2');
+const request = require('request');
+const async = require('async');
+const rimraf = require('rimraf');
+const portscanner = require('portscanner');
+const AdmZip = require('adm-zip');
+const remoteFileSize = require('remote-file-size');
+const Promise = require('bluebird');
 
 const fixPath = require('fix-path');
-var ps = require('ps-node'),
-    setconf = require('../private/setconf.js'),
-    assetChainPorts = require('./ports.js'),
-    nativeCoind = require('./nativeCoind.js'),
-    shepherd = express.Router(),
-    iguanaInstanceRegistry = {},
-    coindInstanceRegistry = {},
-    syncOnlyIguanaInstanceInfo = {},
-    syncOnlyInstanceInterval = -1,
-    guiLog = {},
-    rpcConf = {};
+var ps = require('ps-node');
+var setconf = require('../private/setconf.js');
+var assetChainPorts = require('./ports.js');
+var nativeCoind = require('./nativeCoind.js');
+var shepherd = express.Router();
+var iguanaInstanceRegistry = {};
+var coindInstanceRegistry = {};
+var syncOnlyIguanaInstanceInfo = {};
+var syncOnlyInstanceInterval = -1;
+var guiLog = {};
+var rpcConf = {};
 
 // IGUANA FILES AND CONFIG SETTINGS
 var iguanaConfsDirSrc = path.join(__dirname, '../assets/deps/confs'),
@@ -809,9 +809,6 @@ shepherd.post('/cli', function(req, res, next) {
                 'msg': 'success',
                 'result': result
               };
-
-              console.log('bitcoinrpc debug ====>');
-              console.log(result);
 
               res.end(JSON.stringify(_obj));
             }, function(result) {
