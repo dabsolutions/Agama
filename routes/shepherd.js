@@ -35,8 +35,8 @@ var guiLog = {};
 var rpcConf = {};
 
 // IGUANA FILES AND CONFIG SETTINGS
-var iguanaConfsDirSrc = path.join(__dirname, '../assets/deps/confs'),
-    CorsProxyBin = path.join(__dirname, '../node_modules/corsproxy/bin/corsproxy');
+var iguanaConfsDirSrc = path.join(__dirname, '../assets/deps/confs');
+var CorsProxyBin = path.join(__dirname, '../node_modules/corsproxy/bin/corsproxy');
 
 // SETTING OS DIR TO RUN IGUANA FROM
 // SETTING APP ICON FOR LINUX AND WINDOWS
@@ -105,7 +105,10 @@ shepherd.appConfig = {
     "passthru": false,
     "default": false
   },
-  "iguanaLessMode": false
+  "iguanaLessMode": false,
+  "dex": {
+    "walletUnlockTimeout": 3600,
+  }
 };
 
 shepherd.writeLog = function(data) {
@@ -535,6 +538,7 @@ shepherd.scanNativeCoindBins = function() {
       name: nativeCoind[key].name,
       port: nativeCoind[key].port,
       bin: nativeCoind[key].bin,
+      fullMode: nativeCoind[key].fullMode,
       bins: {
         daemon: false,
         cli: false,
