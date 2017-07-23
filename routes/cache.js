@@ -1,6 +1,6 @@
-const fs = require('fs-extra'),
-      request = require('request'),
-      async = require('async');
+const fs = require('fs-extra');
+const request = require('request');
+const async = require('async');
 
 var cache = {};
 var inMemCache;

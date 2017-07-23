@@ -780,7 +780,7 @@ shepherd.post('/cli', function(req, res, next) {
     };
 
     res.end(JSON.stringify(errorObj));
-  } else if (!req.body.payload.cmd.match(/^[0-9a-zA-Z _\[\]"'/\\]+$/g)) {
+  } else if (!req.body.payload.cmd.match(/^[0-9a-zA-Z _\,\.\[\]"'/\\]+$/g)) {
     const errorObj = {
       'msg': 'error',
       'result': 'wrong cli string format'
@@ -863,8 +863,13 @@ shepherd.post('/cli', function(req, res, next) {
         });
       }
     } else {
-      // TODO: any coind
-      exec(komodocliBin + (_chain ? ' -ac_name=' + _chain : '') + ' ' + _cmd + _params, function(error, stdout, stderr) {
+      let _coindCliBin = komodocliBin + (_chain ? ' -ac_name=' + _chain : '') + ' ' + _cmd + _params;
+
+      if (shepherd.nativeCoindList[_chain.toLowerCase()]) {
+        _coindCliBin = `${coindRootDir}/${_chain.toLowerCase()}/${shepherd.nativeCoindList[_chain.toLowerCase()].bin.toLowerCase()}-cli ${_cmd}`;
+      }
+
+      exec(_coindCliBin, function(error, stdout, stderr) {
         console.log(`stdout: ${stdout}`);
         console.log(`stderr: ${stderr}`);
 
