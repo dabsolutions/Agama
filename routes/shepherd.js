@@ -22,7 +22,8 @@ const electron = require('electron'),
       remoteFileSize = require('remote-file-size'),
       Promise = require('bluebird'),
       {shell} = require('electron'),
-      {execFile} = require('child_process');
+      {execFile} = require('child_process'),
+      ElectrumCli = require('electrum-client');
 
 const fixPath = require('fix-path');
 var ps = require('ps-node'),
@@ -99,6 +100,31 @@ shepherd.defaultAppConfig = Object.assign({}, shepherd.appConfig);
 shepherd.kmdMainPassiveMode = false;
 
 shepherd.coindInstanceRegistry = coindInstanceRegistry;
+
+shepherd.get('/test', function(req, res, next) {
+  const main = async () => {
+      const ecl = new ElectrumCli(50001, 'helicarrier.bauerj.eu', 'tcp') // tcp or tls
+      await ecl.connect() // connect(promise)
+      ecl.subscribe.on('blockchain.headers.subscribe', (v) => console.log(v)) // subscribe message(EventEmitter)
+      try{
+          const ver = await ecl.server_version("2.7.11", "1.0") // json-rpc(promise)
+          console.log(ver)
+      }catch(e){
+          console.log(e)
+      }
+      const balance = await ecl.blockchainAddress_getBalance("1McQZmwnR7FQ8WpriGr9vS2ciw8m3Dut5F")
+      console.log('balance ===>');
+      console.log(balance)
+      const unspent = await ecl.blockchainAddress_listunspent("1McQZmwnR7FQ8WpriGr9vS2ciw8m3Dut5F")
+      console.log('listunspent ===>');
+      console.log(unspent)
+      const listtransactions = await ecl.blockchainAddress_getHistory("1McQZmwnR7FQ8WpriGr9vS2ciw8m3Dut5F")
+      console.log('listtransactions ===>');
+      console.log(listtransactions)
+      await ecl.close() // disconnect(promise)
+  }
+  main()
+});
 
 shepherd.getAppRuntimeLog = function() {
   return new Promise((resolve, reject) => {
@@ -2521,8 +2547,8 @@ shepherd.post('/setconf', function(req, res) {
 
   if (os.platform() === 'win32' &&
       req.body.chain == 'komodod') {
-    setkomodoconf = spawn(path.join(__dirname, '../build/artifacts.supernet.org/latest/windows/genkmdconf.bat'));
     setkomodoconf = spawn(path.join(__dirname, '../assets/bin/win64/genkmdconf.bat'));
+    //setkomodoconf = spawn(path.join(__dirname, '../assets/bin/win64/genkmdconf.bat'));
   } else {
     setConf(req.body.chain);
   }
