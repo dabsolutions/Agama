@@ -102,8 +102,23 @@ shepherd.kmdMainPassiveMode = false;
 shepherd.coindInstanceRegistry = coindInstanceRegistry;
 
 shepherd.get('/test', function(req, res, next) {
-  const main = async () => {
-      const ecl = new ElectrumCli(50001, 'helicarrier.bauerj.eu', 'tcp') // tcp or tls
+  const ecl = new ElectrumCli(50011, '136.243.45.140', 'tcp'); // tcp or tls
+  ecl.connect();
+  ecl.blockchainAddress_getBalance('RDbGxL8QYdEp8sMULaVZS2E6XThcTKT9Jd')
+  .then((json) => {
+    const returnObj = {
+      msg: 'success',
+      result: json,
+    };
+
+    console.log(0.00000001 * json.confirmed);
+
+    res.end(JSON.stringify(returnObj));
+    ecl.close();
+  });
+
+  /*const main = async () => {
+      const ecl = new ElectrumCli(50011, '136.243.45.140', 'tcp') // tcp or tls
       await ecl.connect() // connect(promise)
       ecl.subscribe.on('blockchain.headers.subscribe', (v) => console.log(v)) // subscribe message(EventEmitter)
       try{
@@ -112,18 +127,18 @@ shepherd.get('/test', function(req, res, next) {
       }catch(e){
           console.log(e)
       }
-      const balance = await ecl.blockchainAddress_getBalance("1McQZmwnR7FQ8WpriGr9vS2ciw8m3Dut5F")
+      const balance = await ecl.blockchainAddress_getBalance("RDbGxL8QYdEp8sMULaVZS2E6XThcTKT9Jd")
       console.log('balance ===>');
       console.log(balance)
-      const unspent = await ecl.blockchainAddress_listunspent("1McQZmwnR7FQ8WpriGr9vS2ciw8m3Dut5F")
+      const unspent = await ecl.blockchainAddress_listunspent("RDbGxL8QYdEp8sMULaVZS2E6XThcTKT9Jd")
       console.log('listunspent ===>');
       console.log(unspent)
-      const listtransactions = await ecl.blockchainAddress_getHistory("1McQZmwnR7FQ8WpriGr9vS2ciw8m3Dut5F")
+      const listtransactions = await ecl.blockchainAddress_getHistory("RDbGxL8QYdEp8sMULaVZS2E6XThcTKT9Jd")
       console.log('listtransactions ===>');
       console.log(listtransactions)
       await ecl.close() // disconnect(promise)
   }
-  main()
+  main()*/
 });
 
 shepherd.getAppRuntimeLog = function() {
