@@ -7,7 +7,8 @@ const electron = require('electron'),
 			path = require('path'),
 			url = require('url'),
 			os = require('os'),
-			md5 = require('./routes/md5.js'),
+			md5 = require('./routes/md5'),
+			exec = require('child_process').exec,
 			{ Menu } = require('electron'),
 			portscanner = require('portscanner'),
 			osPlatform = os.platform(),
@@ -30,6 +31,10 @@ if (osPlatform === 'linux') {
 var shepherd = require('./routes/shepherd');
 var guiapp = express();
 
+shepherd.createAgamaDirs();
+
+var appConfig = shepherd.loadLocalConfig(); // load app config
+
 const nativeCoindList = shepherd.scanNativeCoindBins();
 shepherd.setVar('nativeCoindList', nativeCoindList);
 
@@ -50,7 +55,6 @@ const appBasicInfo = {
 app.setName(appBasicInfo.name);
 app.setVersion(appBasicInfo.version);
 
-shepherd.binFixRights();
 shepherd.createAgamaDirs();
 
 const appSessionHash = md5(Date.now().toString());
@@ -77,7 +81,6 @@ shepherd.log(`platform: ${osPlatform}`);
 shepherd.log(`os_release: ${os.release()}`);
 shepherd.log(`os_type: ${os.type()}`);
 
-var appConfig = shepherd.loadLocalConfig(); // load app config
 appConfig['daemonOutput'] = false; // shadow setting
 
 let __defaultAppSettings = require('./routes/appConfig.js').config;
@@ -227,6 +230,7 @@ function createLoadingWindow() {
 	loadingWindow.forseCloseApp = forseCloseApp;
 	loadingWindow.createAppSettingsWindow = createAppSettingsWindow;
 	loadingWindow.startKMDNative = shepherd.startKMDNative;
+	loadingWindow.startSPV = shepherd.startSPV;
 
 	// load our index.html (i.e. easyDEX GUI)
 	loadingWindow.loadURL(`http://${appConfig.host}:${appConfig.agamaPort}/gui/startup`);
@@ -279,7 +283,7 @@ function createAppCloseWindow() {
 	// initialise window
 	appCloseWindow = new BrowserWindow({ // dirty hack to prevent main window flash on quit
 		width: 500,
-		height: 300,
+		height: 320,
 		frame: false,
 		icon: agamaIcon,
 		show: false,
@@ -304,7 +308,7 @@ function createAppSettingsWindow() {
 	// initialise window
 	appSettingsWindow = new BrowserWindow({ // dirty hack to prevent main window flash on quit
 		width: 750,
-		height: !appConfig.experimentalFeatures ? 570 : 700,
+		height: 570,
 		frame: false,
 		icon: agamaIcon,
 		show: false,
@@ -388,6 +392,11 @@ function createWindow(status) {
 		mainWindow.kmdMainPassiveMode = shepherd.kmdMainPassiveMode;
 		mainWindow.getAppRuntimeLog = shepherd.getAppRuntimeLog;
 		mainWindow.nativeCoindList = nativeCoindList;
+		mainWindow.zcashParamsDownloadLinks = shepherd.zcashParamsDownloadLinks;
+		mainWindow.isWindows = os.platform() === 'win32' ? true : false;
+		mainWindow.appExit = appExit;
+		mainWindow.getMaxconKMDConf = shepherd.getMaxconKMDConf;
+		mainWindow.setMaxconKMDConf = shepherd.setMaxconKMDConf;
 
 		if (appConfig.dev) {
 			mainWindow.loadURL('http://127.0.0.1:3000');
@@ -542,6 +551,8 @@ app.on('quit', function(event) {
 app.on('activate', function() {
 	if (mainWindow === null) {}
 });
+
+app.commandLine.appendSwitch('ignore-certificate-errors'); // dirty hack
 
 function formatBytes(bytes, decimals) {
   if (bytes === 0) {
