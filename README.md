@@ -6,12 +6,10 @@ You must have `node.js` and `npm` installed on your machine.
 
 Clone DabVault Desktop App with DabVault-GUI submodule
 ```
-git clone --recursive https://github.com/dabsolutions/DabVault.git
-cd DabVault/gui/EasyDEX-GUI && git checkout master && cd ../../
 =======
-1) git clone https://github.com/supernetorg/agama --recursive --branch pkg_automation_electrum --single-branch
+1) git clone https://github.com/dabsolutions/DabVault --recursive --branch pkg_automation_electrum --single-branch
 with this command you git clone agama - but explicitly just the pkg_automation_electrum branch (therefore --single-branch) which we also use for the release packages.
-2) cd agama && cd gui/EasyDEX-GUI/
+2) cd DabVault/gui/EasyDEX-GUI && git checkout electrum && git pull origin electrum && cd ../../
 3) git checkout electrum && git pull origin electrum
 4) npm install && npm install webpack
 5) ./binary_artifacts.sh
