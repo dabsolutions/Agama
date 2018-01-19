@@ -21,42 +21,20 @@
         </div>
         <div class="intro">
           <img
-            src="../EasyDEX-GUI/assets/mainWindow/img/agama-icon.svg"
-            class="agama-logo"
-            alt="Agama Wallet"
-            width="80"
-            height="100" />
-          <div id="agamaModeStatus">
-            <span id="agamaModeStatusText">Choose Agama mode</span>
-            <div
-              onClick="toggleMainWindowHelp()"
-              class="settings-help pointer"
-              title="About Agama modes">
-              <img src="../EasyDEX-GUI/assets/mainWindow/img/fa-question.png" />
-            </div>
-          </div>
+          src="../EasyDEX-GUI/assets/mainWindow/img/dabsolutions-icon.png"
+          class="agama-logo"
+          alt="Agama Wallet"
+          width="80"
+          height="100" />
         </div>
         <div class="agama-modes-help" style="display: none">
           <img
-            onClick="toggleMainWindowHelp()"
-            class="close-btn"
-            src="../EasyDEX-GUI/assets/mainWindow/img/fa-close.png">
+          onClick="toggleMainWindowHelp()"
+          class="close-btn"
+          src="../EasyDEX-GUI/assets/mainWindow/img/fa-close.png">
           <strong>Be aware:</strong> <u>Native mode</u> requires to download the whole blockchain data to a local disk before you can start using it. This may take from <strong>several hours to a day</strong> depending on your connection and hardware. Please <u>try to keep Agama running</u> until the whole process is finished.
           <br /><br />
           If you need a quick and easy access to your funds try <u>Lite (SPV) mode</u> which doesn't require any blockchain to be loaded locally. All data is requested on demand from Electrum servers. <strong>To gain access to Lite mode toggle "Enable experimental features" in Settings.</strong>
-        </div>
-        <div class="mode-desc native">Full blockchain mode</div>
-        <button
-          id="nativeOnlyBtn"
-          onClick="closeMainWindow(true)"
-          class="btn btn-primary btn-mode btn-native">
-          <img src="../EasyDEX-GUI/assets/mainWindow/img/fa-cube.png"> KMD native
-        </button>
-        <div
-          id="nativeOnlyBtnCarret"
-          class="btn btn-primary btn-caret margin-right-20"
-          onClick="toggleDropdown()">
-          <img src="../EasyDEX-GUI/assets/mainWindow/img/fa-caret-down.png">
         </div>
         <ul class="dropdown-menu native hide">
           <li onClick="closeMainWindow()">
@@ -70,13 +48,13 @@
           </li>
         </ul>
 
-        <div class="mode-desc spv">Starts in seconds</div>
         <button
           id="spvBtn"
           onClick="startSPV('KMD')"
           class="btn btn-primary btn-mode btn-native margin-left-20">
-          <img src="../EasyDEX-GUI/assets/mainWindow/img/fa-flash.png"> KMD lite
+          <img src="../EasyDEX-GUI/assets/mainWindow/img/fa-flash.png"> Start
         </button>
+
         <div
           id="spvBtnCarret"
           class="btn btn-primary btn-caret"
@@ -94,16 +72,14 @@
             <a>Custom</a>
           </li>
         </ul>
+        <button
+          id="settingsBtn"
+          onClick="openSettingsWindow()"
+          class="btn btn-info btn-mode">
+          <img src="../EasyDEX-GUI/assets/mainWindow/img/fa-cogs.png"> Settings
+        </button>
+        <button class="btn btn-primary btn-mode hide" onClick="closeMainWindow(null, true)">Custom</button>
 
-        <div class="margin-top-20">
-          <button
-            id="settingsBtn"
-            onClick="openSettingsWindow()"
-            class="btn btn-info btn-mode">
-            <img src="../EasyDEX-GUI/assets/mainWindow/img/fa-cogs.png"> Settings
-          </button>
-          <button class="btn btn-primary btn-mode hide" onClick="closeMainWindow(null, true)">Custom</button>
-        </div>
       </div>
     </div>
     <script type="text/javascript">init()</script>

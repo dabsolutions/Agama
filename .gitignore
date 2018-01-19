@@ -52,3 +52,10 @@ coins
 
 # Electron-builder related folders
 build
+
+assets
+libs_legacy_osx
+libs_legacy_osx.zip
+__MACOSX/
+kmd_osx_bins
+kmd_osx_bins.zip
